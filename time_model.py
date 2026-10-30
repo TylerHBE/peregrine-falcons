@@ -1,10 +1,8 @@
 import pandas as pd
-import folium
-from folium.plugins import HeatMap
 import numpy as np
 import plotly.express as px
 
-file_address = "/content/drive/MyDrive/Peregrine falcons/data/shc.csv"
+file_address = "./shc.csv"
 
 df = pd.read_csv(file_address)
 df['OBSERVATION DATE'] = pd.to_datetime(df['OBSERVATION DATE'])
@@ -27,9 +25,9 @@ def long_heatmap(name, df):
       bins=x_custom_breaks
       )
   y_step = species['LATITUDE'].std() / std_dev_split
-  y_custom_breaks = np.arange(species['LATITUDE'].min(), species['LATITUDE'].max() + x_step, x_step)
+  y_custom_breaks = np.arange(species['LATITUDE'].min(), species['LATITUDE'].max() + y_step, y_step)
   species['lat_bin'] = pd.cut(species['LATITUDE'], bins=y_custom_breaks)
-  heatmap_df = long_heatmap_df = (
+  heatmap_df = (
     species.groupby(['lng_bin', 'lat_bin', 'month', 'year'], observed=False)
     .size()
     .reset_index(name='count')
@@ -37,12 +35,11 @@ def long_heatmap(name, df):
   heatmap_df['lat_mid'] = heatmap_df['lat_bin'].apply(lambda x: x.mid).astype(float)
   heatmap_df['lng_mid'] = heatmap_df['lng_bin'].apply(lambda x: x.mid).astype(float)
 
-
   return heatmap_df
 
 long_heatmap_df = long_heatmap('Antigone canadensis', df)
 
-fig = px.density_mapbox(
+fig = px.density_map(
     long_heatmap_df, 
     lat='lat_mid', 
     lon='lng_mid', 
@@ -50,8 +47,11 @@ fig = px.density_mapbox(
     radius=35,         # Expand radius to let binned cells touch visually
     center=dict(lat=long_heatmap_df['lat_mid'].mean(), lon=long_heatmap_df['lng_mid'].mean()), 
     zoom=12,
-    mapbox_style="open-street-map",
+    map_style=(
+        "https://server.arcgisonline.com/ArcGIS/rest/services/"
+        "Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}"
+    ),
     color_continuous_scale="YlOrRd"
 )
 
-fig.show()
+fig.write_html("index.html", auto_open=True)
