@@ -1,3 +1,4 @@
-index.html
 *.csv
 smp.txt
+./out
+./__pycache__

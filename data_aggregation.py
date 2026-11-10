@@ -3,24 +3,6 @@
 #Imports
 import pandas as pd
 import numpy as np
-import folium
-import branca.colormap as cm
-
-# Grab data
-file_address = "./shc.csv"
-df = pd.read_csv(file_address)
-
-# Clean data
-df['OBSERVATION DATE'] = pd.to_datetime(
-    df['OBSERVATION DATE'], errors='coerce'
-)
-df['OBSERVATION COUNT'] = pd.to_numeric(
-    df['OBSERVATION COUNT'], errors='coerce'
-).fillna(1)
-for col in ["LATITUDE", "LONGITUDE"]:
-    df[col] = pd.to_numeric(df[col], errors="coerce")
-
-std_dev_split = 10
 
 def create_bins(series, std_dev_split):
     minimum = series.min()
@@ -51,7 +33,7 @@ def create_bins(series, std_dev_split):
         num_bins + 1
     )
 
-def long_hashmap(name, df, std_dev_split=10):
+def long_hashmap(name, df, std_dev_split):
 
     species = df[
         df['SCIENTIFIC NAME'] == name
@@ -151,103 +133,7 @@ def long_hashmap(name, df, std_dev_split=10):
 
     return heatmap_df, coordinate_df
 
-# Generate both DataFrames
-long_heatmap_df, coordinate_df = long_hashmap(
-    'Antigone canadensis',
-    df,
-    std_dev_split=10
-)
-
-def display_map(long_heatmap_df, coordinate_df):
-
-  # Aggregate observations across all dates for initial display
-  display_df = (
-      long_heatmap_df.groupby(['x', 'y'])['count']
-      .sum()
-      .reset_index()
-  )
-
-  # Translate abstracted coordinates into geographic coordinates
-  display_df = display_df.merge(
-      coordinate_df,
-      on=['x', 'y'],
-      how='left',
-      validate='one_to_one'
-  )
-
-  # Initialize map
-  center_lat = display_df['lat'].mean()
-  center_lng = display_df['lng'].mean()
-
-  m = folium.Map(
-      location=[center_lat, center_lng],
-      zoom_start=4,
-      tiles=(
-          "https://server.arcgisonline.com/ArcGIS/rest/services/"
-          "Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}"
-      ),
-      attr="Tiles © Esri",
-      control_scale=True
-  )
-
-  # Color scale
-  max_count = display_df['count'].max()
-
-  colormap = cm.LinearColormap(
-      colors=[
-          '#ffffcc',
-          '#ffeda0',
-          '#feb24c',
-          '#fd8d3c',
-          '#f03b20',
-          '#bd0026'
-      ],
-      vmin=0,
-      vmax=max_count
-  )
-
-  colormap.caption = 'Observation count'
-  colormap.add_to(m)
-
-  # Draw rectangles using translated geographic boundaries
-  for _, row in display_df.iterrows():
-
-      folium.Rectangle(
-          bounds=[
-              [row['lat_min'], row['lng_min']],
-              [row['lat_max'], row['lng_max']]
-          ],
-          color=None,
-          fill=True,
-          fill_color=colormap(row['count']),
-          fill_opacity=0.75,
-          tooltip=(
-              f"Grid: ({row['x']}, {row['y']})<br>"
-              f"Observations: {row['count']}<br>"
-              f"Latitude: {row['lat']:.4f}<br>"
-              f"Longitude: {row['lng']:.4f}"
-          )
-      ).add_to(m)
-
-  # Fit map to geographic boundaries
-  m.fit_bounds([
-      [
-          display_df['lat_min'].min(),
-          display_df['lng_min'].min()
-      ],
-      [
-          display_df['lat_max'].max(),
-          display_df['lng_max'].max()
-      ]
-  ])
-
-  # Export
-  m.save('index.html')
-
-  import webbrowser
-  webbrowser.open('index.html')
-
-def generate_wide(long_heatmap_df):
+def generate_wide(long_heatmap_df, coordinate_df):
 
     wide_heatmap_df = long_heatmap_df.pivot_table(
         index=['year', 'month'],
@@ -257,11 +143,20 @@ def generate_wide(long_heatmap_df):
         fill_value=0
     )
 
+    coordinate_index = pd.MultiIndex.from_frame(
+        coordinate_df[['x', 'y']]
+    )
+    wide_heatmap_df = wide_heatmap_df.reindex(
+        columns=coordinate_index,
+        fill_value=0
+    )
+
     wide_heatmap_df.columns = [
-        f"{i}" for i in range(0, wide_heatmap_df.columns.__len__())
+        f"{i}" for i in range(len(coordinate_df))
     ]
 
     wide_heatmap_df = wide_heatmap_df.reset_index()
 
-    # display_map(df_2011, coordinate_df)
-    wide_heatmap_df.to_csv(path_or_buf="out.csv")
+    wide_heatmap_df.to_csv(path_or_buf="./data/out.csv")
+
+    coordinate_df.rename_axis("pos").to_csv(path_or_buf="translation.csv")
