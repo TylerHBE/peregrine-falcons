@@ -1,7 +1,7 @@
 #Imports
 import pandas as pd
 import numpy as np
-from data_aggregation import long_hashmap,  generate_wide
+from src.depreciated.data_aggregation import long_hashmap,  generate_wide
 
 # Grab data
 

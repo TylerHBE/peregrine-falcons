@@ -159,4 +159,4 @@ def generate_wide(long_heatmap_df, coordinate_df):
 
     wide_heatmap_df.to_csv(path_or_buf="./data/out.csv")
 
-    coordinate_df.rename_axis("pos").to_csv(path_or_buf="translation.csv")
+    coordinate_df.rename_axis("pos").to_csv(path_or_buf="./data/translation.csv")

@@ -1,4 +1,5 @@
 *.csv
 smp.txt
-./out
-./__pycache__
+/src/out/
+./_pycache_/*
+.env
